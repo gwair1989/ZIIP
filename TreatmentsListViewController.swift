@@ -59,6 +59,7 @@ class TreatmentsListViewController: CombinerViewController<TreatmentsListCombine
 
     @IBOutlet weak var filterHeaderView: FilterHeaderView!
     @IBOutlet weak var treatmentsView: TreatmentsHeaderView!
+
     private var currentPageControlView: PageControlReusableView?
     private var currentNoResultsView: UIView?
 
@@ -296,15 +297,6 @@ class TreatmentsListViewController: CombinerViewController<TreatmentsListCombine
 
                 var section = NSCollectionLayoutSection(group: group)
                 section.orthogonalScrollingBehavior = .groupPagingCentered
-                
-//                self.closure = { [weak self] bool in
-//                    print(bool)
-//                    if !bool {
-//                        section.orthogonalScrollingBehavior = .groupPagingCentered
-//                    }
-//                }
-                
-               
                 section.interGroupSpacing = 0
                 section.visibleItemsInvalidationHandler = { [weak self] items, offset, env in
                     self?.updatePageControl(
@@ -321,17 +313,13 @@ class TreatmentsListViewController: CombinerViewController<TreatmentsListCombine
                     trailing: 0
                 )
 
-//                self.closure = { [weak self] bool in
-//                    if !bool {
-//                        print(section.orthogonalScrollingBehavior.rawValue)
-                        let pageControlFooter = NSCollectionLayoutBoundarySupplementaryItem(
-                            layoutSize: .init(widthDimension: .fractionalWidth(1.0), heightDimension: .estimated(50)),
-                            elementKind: Self.pageControlFooterKind,
-                            alignment: .bottom
-                        )
-                        section.boundarySupplementaryItems = [pageControlFooter]
-//                    }
-//                }
+                let pageControlFooter = NSCollectionLayoutBoundarySupplementaryItem(
+                    layoutSize: .init(widthDimension: .fractionalWidth(1.0), heightDimension: .estimated(50)),
+                    elementKind: Self.pageControlFooterKind,
+                    alignment: .bottom
+                )
+
+                section.boundarySupplementaryItems = [pageControlFooter]
 
                 return section
 
@@ -367,6 +355,11 @@ class TreatmentsListViewController: CombinerViewController<TreatmentsListCombine
                 )
                 filterHeader.extendsBoundary = true
                 filterHeader.zIndex = 2
+                if #available(iOS 15.0, *) {
+                    filterHeader.pinToVisibleBounds = true
+                } else {
+                    filterHeader.pinToVisibleBounds = false
+                }
 
                 let treatmentsHeader = NSCollectionLayoutBoundarySupplementaryItem(
                     layoutSize: .init(widthDimension: .fractionalWidth(1.0), heightDimension: .estimated(50)),
@@ -380,11 +373,6 @@ class TreatmentsListViewController: CombinerViewController<TreatmentsListCombine
                     trailing: horizontalSpacing
                 )
                 treatmentsHeader.extendsBoundary = true
-                if #available(iOS 15.0, *) {
-                    treatmentsHeader.pinToVisibleBounds = true
-                } else {
-                    treatmentsHeader.pinToVisibleBounds = false
-                }
                 treatmentsHeader.zIndex = 2
 
                 let noResultsHeader = NSCollectionLayoutBoundarySupplementaryItem(
@@ -403,7 +391,105 @@ class TreatmentsListViewController: CombinerViewController<TreatmentsListCombine
             }
         }
     }()
+    
+    private lazy var layoutIfCaruselIsEmpty: UICollectionViewLayout = {
+        return UICollectionViewCompositionalLayout { (section, environment) -> NSCollectionLayoutSection? in
 
+            let columns: Int
+            let spacing: CGFloat
+            let topSpacing: CGFloat
+            let horizontalSpacing: CGFloat
+            let carouselWidthDimension: NSCollectionLayoutDimension
+            let carouselHeightDimension: NSCollectionLayoutDimension
+            if environment.traitCollection.horizontalSizeClass == .compact {
+                columns = 2
+                spacing = Constants.interitemSpacingSmall
+                topSpacing = Constants.topSpacingSmall
+                horizontalSpacing = Constants.horizontalPaddingCompact
+                carouselWidthDimension = .fractionalWidth(Constants.fractionalWidth)
+                carouselHeightDimension = .estimated(250)
+            } else if environment.container.effectiveContentSize.width > 900 {
+                columns = 4
+                spacing = Constants.interitemSpacingLarge
+                topSpacing = Constants.topSpacingMedium
+                horizontalSpacing = Constants.horizontalPaddingRegular
+                carouselWidthDimension = .absolute(Constants.constantCellWidth)
+                carouselHeightDimension = .absolute(Constants.constantCellHeight)
+            } else {
+                columns = 3
+                spacing = Constants.interitemSpacingMedium
+                topSpacing = Constants.topSpacingMedium
+                horizontalSpacing = Constants.horizontalPaddingRegular
+                carouselWidthDimension = .absolute(Constants.constantCellWidth)
+                carouselHeightDimension = .absolute(Constants.constantCellHeight)
+            }
+
+                let itemSize = NSCollectionLayoutSize(
+                    widthDimension: .fractionalWidth(1.0),
+                    heightDimension: .estimated(Constants.estimatedHeight)
+                )
+
+                let item = NSCollectionLayoutItem(layoutSize: itemSize)
+                let groupSize = NSCollectionLayoutSize(
+                    widthDimension: .fractionalWidth(1.0),
+                    heightDimension: .estimated(Constants.estimatedHeight)
+                )
+
+                let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitem: item, count: columns)
+                group.interItemSpacing = .fixed(spacing)
+                group.contentInsets = NSDirectionalEdgeInsets(
+                    top: 0,
+                    leading: horizontalSpacing,
+                    bottom: 0,
+                    trailing: horizontalSpacing
+                )
+
+                let section = NSCollectionLayoutSection(group: group)
+                section.interGroupSpacing = spacing
+
+                let filterHeader = NSCollectionLayoutBoundarySupplementaryItem(
+                    layoutSize: .init(widthDimension: .fractionalWidth(1.0), heightDimension: .estimated(50)),
+                    elementKind: Self.filterHeaderKind,
+                    alignment: .topLeading,
+                    absoluteOffset: CGPoint(x: 0, y: -50)
+                )
+                filterHeader.extendsBoundary = true
+                filterHeader.zIndex = 2
+                if #available(iOS 15.0, *) {
+                    filterHeader.pinToVisibleBounds = true
+                } else {
+                    filterHeader.pinToVisibleBounds = false
+                }
+
+                let treatmentsHeader = NSCollectionLayoutBoundarySupplementaryItem(
+                    layoutSize: .init(widthDimension: .fractionalWidth(1.0), heightDimension: .estimated(50)),
+                    elementKind: Self.treatmentsHeaderKind,
+                    alignment: .topLeading
+                )
+                treatmentsHeader.contentInsets = NSDirectionalEdgeInsets(
+                    top: 0,
+                    leading: horizontalSpacing,
+                    bottom: 0,
+                    trailing: horizontalSpacing
+                )
+                treatmentsHeader.extendsBoundary = true
+                treatmentsHeader.zIndex = 0
+
+                let noResultsHeader = NSCollectionLayoutBoundarySupplementaryItem(
+                    layoutSize: .init(widthDimension: .fractionalWidth(1.0), heightDimension: .estimated(50)),
+                    elementKind: Self.noResultsHeaderKind,
+                    alignment: .top,
+                    absoluteOffset: CGPoint(x: 0, y: 70)
+                )
+                noResultsHeader.zIndex = 3
+
+                section.boundarySupplementaryItems = [filterHeader, treatmentsHeader, noResultsHeader]
+
+                return section
+
+        }
+    }()
+    
     private func updatePageControl(offset: CGFloat, width: CGFloat) {
         currentPageControlView?.pageControl.currentPage = Int(max(0, round(offset / width)))
     }
@@ -522,11 +608,11 @@ class TreatmentsListViewController: CombinerViewController<TreatmentsListCombine
 
     private func setCollectionViewTopInset() {
         // Needed to set vertical spacing around title consistent with other size class changes
-        if traitCollection.horizontalSizeClass == .compact {
+//        if traitCollection.horizontalSizeClass == .compact {
             collectionView.contentInset.top = Constants.topSpacingSmall
-        } else {
-            collectionView.contentInset.top = Constants.topSpacingMedium
-        }
+//        } else {
+//            collectionView.contentInset.top = Constants.topSpacingMedium
+//        }
     }
 
     /// Update the view
@@ -540,30 +626,33 @@ class TreatmentsListViewController: CombinerViewController<TreatmentsListCombine
         snapshot.appendSections([.treatmentsGrid])
         snapshot.appendItems(state.filteredTreatments.map { .treatment($0) })
 
-        
         retryView.isHidden = state.loadingError == nil || !state.treatments.isEmpty
         currentNoResultsView?.isHidden = (state.treatments.isEmpty || !state.filteredTreatments.isEmpty)
         collectionView.isHidden = !retryView.isHidden
         treatmentsView.showAllButton.isHidden = state.selectedFilters.isEmpty
-        collectionView.showAnimatedGradientSkeleton()
-        if state.treatments.isEmpty && !collectionView.isSkeletonActive {
+        
             filterHeaderView.showLoading()
             collectionView.showAnimatedGradientSkeleton()
             collectionView.isScrollEnabled = false
-        } else if !state.isLoading && collectionView.isSkeletonActive {
+            
+        if !state.isLoading && collectionView.isSkeletonActive {
+            dataSource.apply(snapshot, animatingDifferences: false)
+            if state.featuredTreatments.isEmpty && collectionView.sk.isSkeletonActive && state.isLoading {
+                print("work")
+                collectionView.collectionViewLayout.invalidateLayout()
+                collectionView.setCollectionViewLayout(layoutIfCaruselIsEmpty, animated: false) { bool in
+                    if bool {
+                        self.currentPageControlView?.isHidden = true
+                        snapshot.deleteSections([.carousel])
+                        self.dataSource.apply(snapshot, animatingDifferences: false)
+                    }
+                }
+            }
+            
             collectionView.hideSkeleton(reloadDataAfter: false, transition: .none)
             filterHeaderView.hideLoading()
             collectionView.isScrollEnabled = true
-
-            if state.featuredTreatments.isEmpty && collectionView.isSkeletonActive {
-                snapshot.deleteSections([.carousel])
-                snapshot.deleteItems(carouselItems)
-                self.currentPageControlView?.isHidden = true
-                
-                collectionView.reloadData()
-                
-            }
-            dataSource.apply(snapshot, animatingDifferences: false)
+            
         } else if !state.treatments.isEmpty && !collectionView.isSkeletonActive {
             dataSource.apply(snapshot)
         }
